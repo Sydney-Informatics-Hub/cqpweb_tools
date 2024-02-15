@@ -27,7 +27,7 @@ which it was originally found.
 The current version uses a line-by-line approach and copies the filenames. The
 new version needs to 
 
-- read a textID and find the new mapped ID if one exisst
+- read a textID and find the new mapped ID if one exists
 - either collect the rest of the text or write it out somewhere
 
 A simple approach: write out each of the texts as a separate file with a 
