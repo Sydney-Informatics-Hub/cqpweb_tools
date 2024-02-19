@@ -29,7 +29,7 @@ CORPUS_REMAPPED = "corpus_reorder"
 
 METADATA_EXCEL = "data/warlaw_metadata_2023.xlsx"
 TSV_OUT = "data/warlaw_cqpweb_metadata.tsv"
-
+STATS_OUT = "data/stats.csv"
 
 COL_NEW_ID = 1 # 'B'
 COL_OLD_ID = 8 # 'I'
@@ -54,7 +54,7 @@ def load_id_mappings(excelfile):
         new_id = sanitise_metadata(row[COL_NEW_ID])
         old_id = row[COL_OLD_ID].value
         if not new_id is None and not old_id is None:
-            if new_id != 'Text ID':
+            if new_id != 'Text_ID':
                 if TRUNCATE_TO:
                     if len(old_id) > TRUNCATE_TO:
                         logger.warn(f"Corpus id {old_id} is > 40 chars")
@@ -68,7 +68,7 @@ def load_id_mappings(excelfile):
     with open(TSV_OUT, "w") as tsvh:
         tsvwriter = csv.writer(tsvh, dialect="excel-tab")
         for rec in records:
-            if not rec[0] == "null" and not rec[0] == "Text ID":
+            if not rec[0] == "null" and not rec[0] == "Text_ID":
                 tsvwriter.writerow(rec)
     return mappings
 
@@ -128,11 +128,13 @@ files.sort()
 target_dir = Path(CORPUS_REMAPPED)
 target_dir.mkdir(parents=True, exist_ok=True)
 
-i = 1
+stats = {}
 
 for corpus_file in files:
     contents = ""
     new_id = None
+    n = None
+    logger.info(f"Reading {corpus_file}")
     with open(corpus_file) as ofh:
         for line in ofh:
             if m := TEXT_ID_RE.match(line):
@@ -143,15 +145,21 @@ for corpus_file in files:
                     logger.error(f"Warning: id {old_id} in {corpus_file} not in spreadsheet")
                     sys.exit(-1)
                 if new_id is not None:
-                    write_temp_text(target_dir, i, new_id, content)
-                    i += 1
+                    write_temp_text(target_dir, n, new_id, content)
                 ( new_id, n ) = mappings[old_id]
                 content = f"{prefix}{new_id}{suffix}\n"
+                stats[new_id] = 0
             else:
                 content += line
+                if not line[0] == '<':
+                    stats[new_id] += 1 
     if new_id is not None:
-        write_temp_text(target_dir, i, new_id, content)
-        i += 1
+        write_temp_text(target_dir, n, new_id, content)
+
+with open(STATS_OUT, "w") as csvh:
+    csvwriter = csv.writer(csvh, dialect="excel")
+    for new_id, count in stats.items():
+        csvwriter.writerow([new_id, count])
 
 
 #    new_file = target_dir / corpus_file.name

@@ -12,4 +12,4 @@ cat warlaw_06* > compiled/warlaw_06
 cat warlaw_07* > compiled/warlaw_07
 cat warlaw_08* > compiled/warlaw_08
 cat warlaw_09* > compiled/warlaw_09
-cat warlaw_10* > compiled/warlaw_10
+cat warlaw_10* warlaw_11* > compiled/warlaw_10
