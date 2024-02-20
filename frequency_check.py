@@ -4,6 +4,7 @@
 PROD_FREQ = "frequency_prod.txt"
 DEV_FREQ = "frequency_list_dev6.txt"
 
+
 def load_freq_list(filename):
     freqs = {}
     with open(filename, "r") as fh:

@@ -1,13 +1,12 @@
 # update text ids in a directory of corpus VRT files - writes out a full
 # copy of each file
-# 
+#
 
 from pathlib import Path
 import re
 import logging
 from openpyxl import load_workbook
 import sys
-import re
 import csv
 
 
@@ -31,17 +30,85 @@ METADATA_EXCEL = "data/warlaw_metadata_2023.xlsx"
 TSV_OUT = "data/warlaw_cqpweb_metadata.tsv"
 STATS_OUT = "data/stats.csv"
 
-COL_NEW_ID = 1 # 'B'
-COL_OLD_ID = 8 # 'I'
+# COL_NEW_ID = 1 # 'B'
+# COL_OLD_ID = 9 # 'J'
 TRUNCATE_TO = 40
 TEXT_ID_RE = re.compile(r'(<text id=")([^\"]*)(">.*)')
-MAP_COLS = [ 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16, 17 ]
 
-def sanitise_metadata(cell):
+METADATA = [
+    "new_id",
+    "date",
+    "full_title",
+    "short_title",
+    "icrc_category",
+    "historical",
+    "old_id",
+    "in_force",
+    "entry_in_force",
+    "lan1",
+    "lan2",
+    "lan3",
+    "lan4",
+    "lan5",
+    "lan6",
+    "lan7",
+]
+
+SPREADSHEET = {
+    "new_id": 1,
+    "date": 2,
+    "full_title": 3,
+    "short_title": 4,
+    "icrc_category": 5,
+    "historical": 6,
+    "old_id": 9,
+    "in_force": 10,
+    "entry_in_force": 11,
+    "lan1": 12,
+    "lan2": 13,
+    "lan3": 14,
+    "lan4": 15,
+    "lan5": 16,
+    "lan6": 17,
+    "lan7": 18,
+}
+
+TEXT_FIELDS = ["full_title", "short_title"]
+
+
+def sanitise_handle(cell):
+    """Sanitise values according to cqpqweb's rule for 'handles'"""
     v = cell.value
     if v is None:
         return "null"
     return re.sub(r"[^A-Za-z0-9_]", "_", str(v))
+
+
+def sanitise_title(cell):
+    """Text fields need to have single quotes"""
+    v = cell.value
+    if v is None:
+        return ""
+    if v[0] == "'":
+        return v
+    return f"'{v}'"
+
+
+def sanitise_cell(field, cell):
+    """Sanitise the contents of a cell based on whether it's text or handle"""
+    if field in TEXT_FIELDS:
+        return sanitise_title(cell)
+    else:
+        return sanitise_handle(cell)
+
+
+def sanitise_row(row):
+    """Crosswalk and sanitise a row from the metadata spreadsheet"""
+    cleaned = []
+    for field in METADATA:
+        cell = row[SPREADSHEET[field]]
+        cleaned.append(sanitise_cell(field, cell))
+    return cleaned
 
 
 def load_id_mappings(excelfile):
@@ -50,20 +117,21 @@ def load_id_mappings(excelfile):
     mappings = {}
     n = 1
     records = []
+    new_id_col = SPREADSHEET["new_id"]
+    old_id_col = SPREADSHEET["old_id"]
     for row in ws.iter_rows():
-        new_id = sanitise_metadata(row[COL_NEW_ID])
-        old_id = row[COL_OLD_ID].value
-        if not new_id is None and not old_id is None:
-            if new_id != 'Text_ID':
+        new_id = sanitise_handle(row[new_id_col])
+        old_id = row[old_id_col].value
+        if new_id is not None and old_id is not None:
+            if new_id != "Text_ID":
                 if TRUNCATE_TO:
                     if len(old_id) > TRUNCATE_TO:
                         logger.warn(f"Corpus id {old_id} is > 40 chars")
                     new_id = new_id[:TRUNCATE_TO]
-                mappings[old_id] = ( new_id, n )
+                mappings[old_id] = (new_id, n)
                 logger.info(f"map old {old_id} to new {new_id} {n}")
                 n += 1
-        cleaned = [ sanitise_metadata(cell) for cell in row ]
-        records.append([ new_id ] + [ cleaned[c] for c in MAP_COLS ])
+        records.append(sanitise_row(row))
     print(f"Writing tsv metadata to {TSV_OUT}")
     with open(TSV_OUT, "w") as tsvh:
         tsvwriter = csv.writer(tsvh, dialect="excel-tab")
@@ -72,13 +140,14 @@ def load_id_mappings(excelfile):
                 tsvwriter.writerow(rec)
     return mappings
 
+
 def convert_ids(mappings, cfh):
     for line in cfh:
         if m := TEXT_ID_RE.match(line):
             prefix = m.group(1)
             old_id = m.group(2)
             suffix = m.group(3)
-            if not old_id in mappings:
+            if old_id not in mappings:
                 logger.warn(f"Warning: id {old_id} in {corpus_file} not in spreadsheet")
                 yield line
             else:
@@ -131,7 +200,7 @@ target_dir.mkdir(parents=True, exist_ok=True)
 stats = {}
 
 for corpus_file in files:
-    contents = ""
+    content = ""
     new_id = None
     n = None
     logger.info(f"Reading {corpus_file}")
@@ -141,18 +210,20 @@ for corpus_file in files:
                 prefix = m.group(1)
                 old_id = m.group(2)
                 suffix = m.group(3)
-                if not old_id in mappings:
-                    logger.error(f"Warning: id {old_id} in {corpus_file} not in spreadsheet")
+                if old_id not in mappings:
+                    logger.error(
+                        f"Warning: id {old_id} in {corpus_file} not in spreadsheet"
+                    )
                     sys.exit(-1)
                 if new_id is not None:
                     write_temp_text(target_dir, n, new_id, content)
-                ( new_id, n ) = mappings[old_id]
+                (new_id, n) = mappings[old_id]
                 content = f"{prefix}{new_id}{suffix}\n"
                 stats[new_id] = 0
             else:
                 content += line
-                if not line[0] == '<':
-                    stats[new_id] += 1 
+                if not line[0] == "<":
+                    stats[new_id] += 1
     if new_id is not None:
         write_temp_text(target_dir, n, new_id, content)
 
@@ -163,5 +234,5 @@ with open(STATS_OUT, "w") as csvh:
 
 
 #    new_file = target_dir / corpus_file.name
-    # logger.info(f"{corpus_file} => {new_file}")
-    # convert_file(mappings, corpus_file, new_file)
+# logger.info(f"{corpus_file} => {new_file}")
+# convert_file(mappings, corpus_file, new_file)
