@@ -69,5 +69,4 @@ correct lexicographical order.
 
 Script to test whether the frequency list from an indexed corpus is the same
 as the original, as a sanity check of whether reindexing worked.  The input
-files are the text files downloaded from CQPweb, with the first few lines
-removed
+files are the text files as downloaded fro the frequency list page in CQPWeb.
