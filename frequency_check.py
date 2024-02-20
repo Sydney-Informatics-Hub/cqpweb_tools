@@ -21,22 +21,29 @@ def load_freq_list(filename):
     return freqs
 
 
-f_prod = load_freq_list(PROD_FREQ)
-f_dev = load_freq_list(DEV_FREQ)
+def main():
+    f_prod = load_freq_list(PROD_FREQ)
+    f_dev = load_freq_list(DEV_FREQ)
 
-print(f"Checking all tokens from {PROD_FREQ} ...")
-for token, count in f_prod.items():
-    if token not in f_dev:
-        print(f"{token} not found in {DEV_FREQ}")
+    print(f"Checking all tokens from {PROD_FREQ} ...")
+    for token, count in f_prod.items():
+        if token not in f_dev:
+            print(f"{token} not found in {DEV_FREQ}")
+        else:
+            if f_dev[token] != f_prod[token]:
+                msg = f"Frequency for token '{token}' is {f_dev[token]}"
+                msg += f"(expected {f_prod[token]})"
+                print(msg)
+            f_dev.pop(token)
+
+    print("Done.")
+
+    if len(f_dev) > 0:
+        print(f"Tokens in {DEV_FREQ} not found in prod:")
+        print(f_dev)
     else:
-        if f_dev[token] != f_prod[token]:
-            print(f"Count mismatch for token {token}: {f_dev[token]}")
-        f_dev.pop(token)
+        print("No leftover words in dev.")
 
-print("Done.")
 
-if len(f_dev) > 0:
-    print(f"Tokens in {DEV_FREQ} not found in prod:")
-    print(f_dev)
-else:
-    print("No leftover words in dev.")
+if __name__ == "__main__":
+    main()
