@@ -30,19 +30,18 @@ METADATA_EXCEL = "data/warlaw_metadata_2023.xlsx"
 TSV_OUT = "data/warlaw_cqpweb_metadata.tsv"
 STATS_OUT = "data/stats.csv"
 
-# COL_NEW_ID = 1 # 'B'
-# COL_OLD_ID = 9 # 'J'
 TRUNCATE_TO = 40
 TEXT_ID_RE = re.compile(r'(<text id=")([^\"]*)(">.*)')
 
+# METADATA specifies the order in which the columns in the tsv file will be
+# written. The IDs aren't included because they're handled separately.
+
 METADATA = [
-    "new_id",
     "date",
-    "full_title",
     "short_title",
+    "full_title",
     "icrc_category",
     "historical",
-    "old_id",
     "in_force",
     "entry_in_force",
     "lan1",
@@ -53,6 +52,13 @@ METADATA = [
     "lan6",
     "lan7",
 ]
+
+# SPREADSHEET maps columns in the metadata tsv to the column indices in the
+# input spreadsheet (so it's in reverse, new: old, and not everything in the
+# input spreadsheet needs to be mapped)
+
+# The values for "new_id" and "old_id" are where the id mapping gets values
+# from.
 
 SPREADSHEET = {
     "new_id": 1,
@@ -131,7 +137,7 @@ def load_id_mappings(excelfile):
                 mappings[old_id] = (new_id, n)
                 logger.info(f"map old {old_id} to new {new_id} {n}")
                 n += 1
-        records.append(sanitise_row(row))
+        records.append([new_id] + sanitise_row(row))
     print(f"Writing tsv metadata to {TSV_OUT}")
     with open(TSV_OUT, "w") as tsvh:
         tsvwriter = csv.writer(tsvh, dialect="excel-tab")
